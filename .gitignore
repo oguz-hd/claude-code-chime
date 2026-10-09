@@ -1,0 +1,9 @@
+# Engine type declarations: regenerate with /plugin-types instead of committing
+.claude/types/
+plugins/chime/.claude/
+node_modules/
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db
+plugins/chime/.claude-plugin/types/

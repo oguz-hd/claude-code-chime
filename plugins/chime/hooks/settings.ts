@@ -1,0 +1,104 @@
+import type { ChimeEvent, ChimeSettings, ChimeSound } from '../types'
+
+export const EVENTS: readonly ChimeEvent[] = ['done', 'waiting', 'error', 'idle']
+
+export const EVENT_INFO: Record<ChimeEvent, { label: string; when: string }> = {
+  done: { label: 'Done', when: 'Claude finished and handed the turn back to you' },
+  waiting: { label: 'Waiting', when: 'Claude needs a permission, an answer or a plan approval' },
+  error: { label: 'Error', when: 'the turn ended on an API error (rate limit, overload, auth)' },
+  idle: { label: 'Idle', when: 'the prompt has sat unanswered for a while (a reminder)' },
+}
+
+/** The bundled sounds, in the order the picker lists them. */
+export const BUNDLED: readonly { id: string; label: string; note: string }[] = [
+  { id: 'tada', label: 'Ta-da', note: 'a short pickup note, then a bright chord' },
+  { id: 'coin', label: 'Coin', note: '8-bit coin pickup' },
+  { id: 'level-up', label: 'Level up', note: 'rising 8-bit arpeggio' },
+  { id: 'doorbell', label: 'Doorbell', note: 'ding-dong' },
+  { id: 'microwave', label: 'Microwave', note: 'beep beep beep' },
+  { id: 'boing', label: 'Boing', note: 'cartoon spring' },
+  { id: 'rubber-duck', label: 'Rubber duck', note: 'two squeaks' },
+  { id: 'robot', label: 'Robot', note: 'beep-boop chirps' },
+  { id: 'slide-whistle', label: 'Slide whistle', note: 'whistle sliding up' },
+  { id: 'sad-trombone', label: 'Sad trombone', note: 'wah wah wah waaah' },
+]
+
+export const DEFAULTS: ChimeSettings = {
+  isEnabled: true,
+  volume: 60,
+  sounds: { done: 'tada', waiting: 'doorbell', error: 'sad-trombone', idle: 'off' },
+  minTurnSeconds: 0,
+  quietHours: '',
+  isPlayingOverSsh: false,
+}
+
+export const isBundled = (sound: ChimeSound) => BUNDLED.some(b => b.id === sound)
+
+/** True for `/x`, `~/x`, `C:\x`, `C:/x` and `\\server\share`. */
+export const isFilePath = (sound: ChimeSound) =>
+  /^(\/|~[\\/]|[A-Za-z]:[\\/]|\\\\)/.test(sound)
+
+export const soundLabel = (sound: ChimeSound) =>
+  sound === 'off' ? 'off' : (BUNDLED.find(b => b.id === sound)?.label ?? sound)
+
+export const clampVolume = (n: number) => Math.round(Math.min(100, Math.max(0, n)))
+
+/**
+ * Fills in what a stored value lacks and drops what no longer fits, so a
+ * settings file from an older or newer version still loads.
+ */
+export function normalize(raw: unknown): ChimeSettings {
+  const s = (raw && typeof raw === 'object' ? raw : {}) as Partial<ChimeSettings>
+  const sounds = { ...DEFAULTS.sounds }
+  for (const event of EVENTS) {
+    const value = s.sounds?.[event]
+    if (typeof value === 'string' && (value === 'off' || isBundled(value) || isFilePath(value))) {
+      sounds[event] = value
+    }
+  }
+  return {
+    isEnabled: typeof s.isEnabled === 'boolean' ? s.isEnabled : DEFAULTS.isEnabled,
+    volume: typeof s.volume === 'number' && Number.isFinite(s.volume) ? clampVolume(s.volume) : DEFAULTS.volume,
+    sounds,
+    minTurnSeconds:
+      typeof s.minTurnSeconds === 'number' && s.minTurnSeconds >= 0 ? Math.round(s.minTurnSeconds) : 0,
+    quietHours: typeof s.quietHours === 'string' && parseQuietHours(s.quietHours) ? s.quietHours : '',
+    isPlayingOverSsh: s.isPlayingOverSsh === true,
+  }
+}
+
+/** `22:00-07:30` to minutes after midnight, or null when malformed. */
+export function parseQuietHours(text: string): { from: number; to: number } | null {
+  const m = /^\s*(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})\s*$/.exec(text)
+  if (!m) return null
+  const [h1 = 0, m1 = 0, h2 = 0, m2 = 0] = m.slice(1).map(Number)
+  if (h1 > 23 || h2 > 23 || m1 > 59 || m2 > 59) return null
+  return { from: h1 * 60 + m1, to: h2 * 60 + m2 }
+}
+
+/** Whether `date` (local time) falls inside the range; a range may wrap midnight. */
+export function isInQuietHours(text: string, date: Date): boolean {
+  const range = parseQuietHours(text)
+  if (!range || range.from === range.to) return false
+  const now = date.getHours() * 60 + date.getMinutes()
+  return range.from < range.to
+    ? now >= range.from && now < range.to
+    : now >= range.from || now < range.to
+}
+
+/** `30`, `30m`, `2h`, `1h30m` to milliseconds, or null. A bare number is minutes. */
+export function parseDuration(text: string): number | null {
+  const t = text.trim().toLowerCase()
+  if (/^\d+$/.test(t)) return Number(t) * 60_000
+  const m = /^(?:(\d+)h)?\s*(?:(\d+)m(?:in)?)?$/.exec(t)
+  if (!m || (!m[1] && !m[2])) return null
+  return (Number(m[1] ?? 0) * 60 + Number(m[2] ?? 0)) * 60_000
+}
+
+export function describeDuration(ms: number): string {
+  const minutes = Math.max(1, Math.round(ms / 60_000))
+  if (minutes < 60) return `${minutes} min`
+  const h = Math.floor(minutes / 60)
+  const m = minutes % 60
+  return m ? `${h} h ${m} min` : `${h} h`
+}

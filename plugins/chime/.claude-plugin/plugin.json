@@ -1,0 +1,11 @@
+{
+  "name": "chime",
+  "version": "0.1.0",
+  "description": "Plays a sound when Claude finishes, needs your input, or hits an error. Ten original sounds, your own files, volume, quiet hours and snooze.",
+  "author": { "name": "Oğuz Han Duran", "url": "https://github.com/oguz-hd" },
+  "homepage": "https://github.com/oguz-hd/claude-code-chime",
+  "repository": "https://github.com/oguz-hd/claude-code-chime",
+  "license": "MIT",
+  "keywords": ["sound", "notification", "audio", "alert", "mod"],
+  "types": "./types/index.d.ts"
+}
