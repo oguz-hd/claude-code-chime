@@ -41,7 +41,33 @@ Chime stays silent:
 
 ## Changing sounds
 
-Type `/chime` to open the picker. Choose an event (Done, Waiting, Error, Idle), then press a sound to hear it and keep it. Keys: `d` `w` `e` `i` switch the event, `1`–`0` pick a sound, `o` turns Chime on or off, `s` snoozes for an hour, `q` or Esc closes the pane.
+Type `/chime` to open the picker. It works from the keyboard like Claude Code's own menus:
+
+| Key | Does |
+| --- | --- |
+| ↑ ↓ | move between rows |
+| Enter | open a row, or keep the highlighted choice |
+| 1–9, 0 | jump straight to a numbered row |
+| b | back to the main screen |
+| Esc | close the picker |
+
+In a sound list, resting on a sound plays it, so you can browse by ear and press Enter on the one you like. The volume list does the same at each level.
+
+```
+Chime
+Sounds for when Claude finishes or needs you.
+
+1: Done      Ta-da
+2: Waiting   Doorbell
+3: Error     Sad trombone
+4: Idle      off
+5: Volume    60
+6: Chime     on
+7: Snooze    off
+8: Test      play every sound
+
+↑↓ move · Enter open · 1-8 jump · Esc close · /chime help for more
+```
 
 Or use the command directly:
 
