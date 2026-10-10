@@ -3,12 +3,14 @@ import type { EngineInterface, Register, Timer } from 'claude-code'
 
 import type { ChimeEvent, ChimeSettings, ChimeSound } from '../types'
 import {
-  BUNDLED,
+  CATEGORIES,
   DEFAULTS,
   EVENTS,
   EVENT_INFO,
+  categoryOf,
   clampVolume,
   describeDuration,
+  findCategory,
   isBundled,
   isFilePath,
   isInQuietHours,
@@ -16,6 +18,7 @@ import {
   parseDuration,
   parseQuietHours,
   soundLabel,
+  soundsIn,
 } from './settings'
 import { POWERSHELL, PS_PLAY, PS_WRITE_AND_PLAY, fnv1a, fromBase64, posixPlayers, scaleWav, toBase64 } from './wav'
 
@@ -31,7 +34,7 @@ const DEBOUNCE_MS = 1500
 
 const settingsAtom = atom({ plugin: 'chime', key: 'settings' } as const, DEFAULTS)
 const snoozeAtom = atom({ plugin: 'chime', key: 'snoozeUntil' } as const, 0)
-/** The picker's screen: `main`, an event's sound list, `volume` or `snooze`. */
+/** The picker's screen: `main`, an event's category list (`done`), a category's sounds (`done/retro`), `volume` or `snooze`. */
 const screenAtom = atom({ plugin: 'chime', key: 'screen' } as const, 'main')
 
 const VOLUME_STEPS = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100] as const
@@ -239,9 +242,19 @@ const pad = (text: string, width: number) => (text.length >= width ? `${text} ` 
 
 const nearestStep = (volume: number) => Math.min(100, Math.max(10, Math.round(volume / 10) * 10))
 
-/** The ring's landing key in a sound list, for the sound an event has now. */
-const focusKeyForSound = (sound: string) =>
-  sound === 'off' ? 'sound:off' : isBundled(sound) ? `sound:${sound}` : `sound:${BUNDLED[0]?.id ?? 'tada'}`
+/** The ring's landing key in an event's category list, for the sound the event has now. */
+const focusKeyForCategory = (sound: string) =>
+  sound === 'off' ? 'sound:off' : `cat:${categoryOf(sound) ?? CATEGORIES[0]?.id ?? 'victory'}`
+
+/** The ring's landing key in a category's sound list. */
+const focusKeyForSound = (sound: string, category: string) =>
+  isBundled(sound) && categoryOf(sound) === category ? `sound:${sound}` : `sound:${soundsIn(category)[0]?.id}`
+
+/** Splits a screen name like `done/retro` into its event and category. */
+function parseScreen(screen: string): { event?: ChimeEvent; category?: string } {
+  const [head = '', category] = screen.split('/')
+  return EVENTS.includes(head as ChimeEvent) ? { event: head as ChimeEvent, category } : {}
+}
 
 /** What the volume screen plays: the done sound, or the first event's that is not silent. */
 function previewSoundFor(s: ChimeSettings): string {
@@ -386,9 +399,11 @@ export const register: Register = on => {
       </Box>
     )
 
-    // ---- a sound list for one event
-    if (EVENTS.includes(screen as ChimeEvent)) {
-      const event = screen as ChimeEvent
+    const { event, category: categoryId } = parseScreen(screen)
+
+    // ---- the sounds of one category, for one event
+    if (event && categoryId) {
+      const category = CATEGORIES.find(c => c.id === categoryId)
       const current = s.sounds[event]
       const keep = (sound: string) => async () => {
         cancelPreview()
@@ -398,10 +413,12 @@ export const register: Register = on => {
       }
       return (
         <Box flexDirection="column">
-          <Text bold>{EVENT_INFO[event].label} sound</Text>
+          <Text bold>
+            {EVENT_INFO[event].label} sound · {category?.label ?? categoryId}
+          </Text>
           <Text dimColor>Plays when {EVENT_INFO[event].when}.</Text>
           <Box flexDirection="column" marginTop={1}>
-            {BUNDLED.map((sound, i) => (
+            {soundsIn(categoryId).map((sound, i) => (
               <Button
                 key={`sound:${sound.id}`}
                 plain
@@ -411,23 +428,53 @@ export const register: Register = on => {
                 onPress={keep(sound.id)}
               />
             ))}
+          </Box>
+          <Box marginTop={1} flexDirection="column">
+            <Button key="back" plain hotkey="b" label="Back to categories" onPress={go(event, `cat:${categoryId}`)} />
+          </Box>
+          {footer('↑↓ listen · Enter keep · b back · Esc close')}
+        </Box>
+      )
+    }
+
+    // ---- an event's categories
+    if (event) {
+      const current = s.sounds[event]
+      const keepOff = async () => {
+        cancelPreview()
+        await saveSettings($, x => ({ ...x, sounds: { ...x.sounds, [event]: 'off' } }))
+        await go('main', `event:${event}`)()
+      }
+      return (
+        <Box flexDirection="column">
+          <Text bold>{EVENT_INFO[event].label} sound</Text>
+          <Text dimColor>Plays when {EVENT_INFO[event].when}.</Text>
+          <Box flexDirection="column" marginTop={1}>
+            {CATEGORIES.map((c, i) => (
+              <Button
+                key={`cat:${c.id}`}
+                plain
+                hotkey={String(i + 1)}
+                autoFocus={categoryOf(current) === c.id ? true : undefined}
+                label={`${pad(c.label + (categoryOf(current) === c.id ? ' ✓' : ''), 11)}${pad(`${soundsIn(c.id).length} sounds`, 11)}${c.note}`}
+                onPress={go(`${event}/${c.id}`, focusKeyForSound(current, c.id))}
+              />
+            ))}
             <Button
               key="sound:off"
               plain
               hotkey="s"
-              label={`${pad('Silent' + (current === 'off' ? ' ✓' : ''), 16)}no sound for this event`}
-              onPress={keep('off')}
+              label={`${pad('Silent' + (current === 'off' ? ' ✓' : ''), 22)}no sound for this event`}
+              onPress={keepOff}
             />
           </Box>
-          {isFilePath(current) && (
-            <Box marginTop={1}>
-              <Text>Using your file: {current}</Text>
-            </Box>
-          )}
+          <Box marginTop={1}>
+            <Text>{isFilePath(current) ? `Using your file: ${current}` : `Now: ${soundLabel(current)}`}</Text>
+          </Box>
           <Box marginTop={1} flexDirection="column">
             <Button key="back" plain hotkey="b" label="Back" onPress={go('main', `event:${event}`)} />
           </Box>
-          {footer(`↑↓ listen · Enter keep · b back · Esc close · own file: /chime ${event} ~/sound.wav`)}
+          {footer(`↑↓ move · Enter open · b back · Esc close · own file: /chime ${event} ~/sound.wav`)}
         </Box>
       )
     }
@@ -526,7 +573,7 @@ export const register: Register = on => {
               hotkey={String(i + 1)}
               autoFocus={i === 0 ? true : undefined}
               label={`${pad(EVENT_INFO[event].label, 10)}${soundLabel(s.sounds[event])}`}
-              onPress={go(event, focusKeyForSound(s.sounds[event]))}
+              onPress={go(event, focusKeyForCategory(s.sounds[event]))}
             />
           ))}
           <Button
@@ -576,7 +623,8 @@ const HELP = `Chime plays a sound when Claude finishes, needs you, or fails.
   /chime                      open the sound picker
   /chime status               show the settings
   /chime test [event]         play one event's sound, or all of them
-  /chime list                 list the bundled sounds
+  /chime list [CATEGORY]      list the bundled sounds by category
+                              (victory, retro, bells, cartoon, tech, calm)
   /chime play SOUND           preview a sound
   /chime EVENT SOUND          set a sound: EVENT is done, waiting, error or idle;
                               SOUND is a bundled name, off, or a file path
@@ -602,8 +650,16 @@ async function runCommand($: Engine, args: string): Promise<string> {
   if (word === 'help') return HELP
   if (word === 'status') return statusText($)
 
-  if (word === 'list') {
-    return ['Bundled sounds:', ...BUNDLED.map(b => `  ${b.id.padEnd(14)} ${b.note}`), '  off            silence'].join('\n')
+  if (word === 'list' || word === 'sounds') {
+    const only = value ? findCategory(value) : undefined
+    if (value && !only) return `Unknown category "${value}". Categories: ${CATEGORIES.map(c => c.id).join(', ')}.`
+    const lines = ['Bundled sounds:']
+    for (const c of only ? [only] : CATEGORIES) {
+      lines.push('', `${c.label} (${c.id}): ${c.note}`)
+      lines.push(...soundsIn(c.id).map(b => `  ${b.id.padEnd(14)} ${b.note}`))
+    }
+    lines.push('', '  off            silence')
+    return lines.join('\n')
   }
 
   if (word === 'play') {

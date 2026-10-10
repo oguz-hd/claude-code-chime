@@ -9,19 +9,70 @@ export const EVENT_INFO: Record<ChimeEvent, { label: string; when: string }> = {
   idle: { label: 'Idle', when: 'the prompt has sat unanswered for a while (a reminder)' },
 }
 
-/** The bundled sounds, in the order the picker lists them. */
-export const BUNDLED: readonly { id: string; label: string; note: string }[] = [
-  { id: 'tada', label: 'Ta-da', note: 'a short pickup note, then a bright chord' },
-  { id: 'coin', label: 'Coin', note: '8-bit coin pickup' },
-  { id: 'level-up', label: 'Level up', note: 'rising 8-bit arpeggio' },
-  { id: 'doorbell', label: 'Doorbell', note: 'ding-dong' },
-  { id: 'microwave', label: 'Microwave', note: 'beep beep beep' },
-  { id: 'boing', label: 'Boing', note: 'cartoon spring' },
-  { id: 'rubber-duck', label: 'Rubber duck', note: 'two squeaks' },
-  { id: 'robot', label: 'Robot', note: 'beep-boop chirps' },
-  { id: 'slide-whistle', label: 'Slide whistle', note: 'whistle sliding up' },
-  { id: 'sad-trombone', label: 'Sad trombone', note: 'wah wah wah waaah' },
+/** The bundled sounds are grouped into these categories, in the order the picker lists them. */
+export const CATEGORIES: readonly { id: string; label: string; note: string }[] = [
+  { id: 'victory', label: 'Victory', note: 'fanfares and "all done" flourishes' },
+  { id: 'retro', label: 'Retro', note: '8-bit game sounds' },
+  { id: 'bells', label: 'Bells', note: 'doorbells, chimes and mallets' },
+  { id: 'cartoon', label: 'Cartoon', note: 'silly and playful' },
+  { id: 'tech', label: 'Tech', note: 'beeps, pings and sci-fi' },
+  { id: 'calm', label: 'Calm', note: 'soft and unobtrusive' },
 ]
+
+type Bundled = { id: string; label: string; note: string; category: string }
+
+/** The bundled sounds, grouped by category in the order the picker lists them. */
+export const BUNDLED: readonly Bundled[] = [
+  { id: 'tada', label: 'Ta-da', note: 'a short pickup note, then a bright chord', category: 'victory' },
+  { id: 'fanfare', label: 'Fanfare', note: 'three brass hits, then a chord', category: 'victory' },
+  { id: 'success', label: 'Success', note: 'pleasant rising two-note ding', category: 'victory' },
+
+  { id: 'coin', label: 'Coin', note: '8-bit coin pickup', category: 'retro' },
+  { id: 'level-up', label: 'Level up', note: 'rising 8-bit arpeggio', category: 'retro' },
+  { id: 'power-up', label: 'Power up', note: 'stepped upward sweep', category: 'retro' },
+  { id: 'one-up', label: '1-up', note: 'extra-life jingle', category: 'retro' },
+  { id: 'blip', label: 'Blip', note: 'one tiny menu beep', category: 'retro' },
+  { id: 'laser', label: 'Laser', note: 'zap sliding down', category: 'retro' },
+  { id: 'game-over', label: 'Game over', note: 'descending 8-bit sigh', category: 'retro' },
+
+  { id: 'doorbell', label: 'Doorbell', note: 'ding-dong', category: 'bells' },
+  { id: 'ding', label: 'Ding', note: 'a single bright bell', category: 'bells' },
+  { id: 'glockenspiel', label: 'Glockenspiel', note: 'four rising bell notes', category: 'bells' },
+  { id: 'wind-chimes', label: 'Wind chimes', note: 'scattered high bells', category: 'bells' },
+  { id: 'gong', label: 'Gong', note: 'deep, slow-fading strike', category: 'bells' },
+  { id: 'music-box', label: 'Music box', note: 'tinkling six-note tune', category: 'bells' },
+
+  { id: 'boing', label: 'Boing', note: 'cartoon spring', category: 'cartoon' },
+  { id: 'rubber-duck', label: 'Rubber duck', note: 'two squeaks', category: 'cartoon' },
+  { id: 'slide-whistle', label: 'Slide whistle', note: 'whistle sliding up', category: 'cartoon' },
+  { id: 'sad-trombone', label: 'Sad trombone', note: 'wah wah wah waaah', category: 'cartoon' },
+  { id: 'bubble-pop', label: 'Bubble pop', note: 'three quick bubbles', category: 'cartoon' },
+  { id: 'cuckoo', label: 'Cuckoo', note: 'cuckoo-clock call, twice', category: 'cartoon' },
+  { id: 'whoosh', label: 'Whoosh', note: 'airy swoosh', category: 'cartoon' },
+
+  { id: 'microwave', label: 'Microwave', note: 'beep beep beep', category: 'tech' },
+  { id: 'robot', label: 'Robot', note: 'beep-boop chirps', category: 'tech' },
+  { id: 'sonar', label: 'Sonar', note: 'ping with fading echoes', category: 'tech' },
+  { id: 'scanner', label: 'Scanner', note: 'wobbling radar sweep', category: 'tech' },
+  { id: 'computer', label: 'Computer', note: 'four two-tone beeps', category: 'tech' },
+
+  { id: 'singing-bowl', label: 'Singing bowl', note: 'long, soft ring', category: 'calm' },
+  { id: 'water-drop', label: 'Water drop', note: 'two soft drips', category: 'calm' },
+  { id: 'harp', label: 'Harp', note: 'gentle rising strum', category: 'calm' },
+  { id: 'marimba', label: 'Marimba', note: 'three warm wooden notes', category: 'calm' },
+]
+
+/** The bundled sounds of one category, in listing order. */
+export const soundsIn = (category: string) => BUNDLED.filter(b => b.category === category)
+
+/** The category a sound belongs to, or undefined for `off` and file paths. */
+export const categoryOf = (sound: ChimeSound) => BUNDLED.find(b => b.id === sound)?.category
+
+/** Finds a category by id or label, ignoring case. */
+export const findCategory = (text: string) => {
+  const t = text.trim().toLowerCase()
+  return CATEGORIES.find(c => c.id === t || c.label.toLowerCase() === t)
+}
 
 export const DEFAULTS: ChimeSettings = {
   isEnabled: true,

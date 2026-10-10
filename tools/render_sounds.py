@@ -197,6 +197,192 @@ def slide_whistle() -> np.ndarray:
     return tr.buf
 
 
+def bell(tr: Track, start: float, f: float, dur: float, peak: float, partials=None) -> None:
+    """A struck-metal note: inharmonic partials, the high ones dying faster."""
+    partials = partials or ((1.0, 1.0), (2.76, 0.4), (5.4, 0.15), (8.93, 0.06))
+    for ratio, amp in partials:
+        tr.voice("sine", start, dur / math.sqrt(ratio), peak * amp, f * ratio, attack=0.004)
+
+
+# ---- victory
+
+
+def fanfare() -> np.ndarray:
+    tr = Track(1.6)
+    for s in (0.0, 0.16, 0.32):
+        tr.voice("saw", s, 0.14, 0.12, 392, attack=0.01)
+    for f in (523, 659, 784):
+        tr.voice("saw", 0.5, 1.0, 0.08, vibrato(f, 5.5, f * 0.006, start=0.1), attack=0.02)
+    return biquad(tr.buf, "lowpass", 2600, 0.8)
+
+
+def success() -> np.ndarray:
+    tr = Track(1.0)
+    tr.voice("triangle", 0.0, 0.14, 0.3, 659, attack=0.004)
+    tr.voice("triangle", 0.11, 0.8, 0.3, 988, attack=0.004)
+    tr.voice("sine", 0.11, 0.5, 0.08, 1976, attack=0.004)
+    return tr.buf
+
+
+# ---- retro
+
+
+def power_up() -> np.ndarray:
+    tr = Track(0.55)
+    steps = lambda t: 260 * 6 ** (np.floor(np.clip(t / 0.35, 0, 1) * 12) / 12)
+    tr.voice("square", 0.0, 0.45, 0.15, steps, attack=0.003)
+    return tr.buf
+
+
+def one_up() -> np.ndarray:
+    tr = Track(0.8)
+    for i, f in enumerate([659, 784, 1319, 1047, 1175, 1568]):
+        tr.voice("square", i * 0.075, 0.3 if i == 5 else 0.09, 0.13, f, attack=0.003)
+    return tr.buf
+
+
+def blip() -> np.ndarray:
+    tr = Track(0.15)
+    tr.voice("square", 0.0, 0.08, 0.18, 880, attack=0.002)
+    return tr.buf
+
+
+def laser() -> np.ndarray:
+    tr = Track(0.4)
+    tr.voice("saw", 0.0, 0.3, 0.25, lambda t: exp_ramp(2400, 200, 0, 0.25, t), attack=0.002)
+    return biquad(tr.buf, "lowpass", 4000, 0.7)
+
+
+def game_over() -> np.ndarray:
+    tr = Track(1.2)
+    s = 0.0
+    for i, f in enumerate([523, 415, 349, 262]):
+        d = 0.5 if i == 3 else 0.14
+        tr.voice("square", s, d, 0.12, vibrato(f, 6, 5, start=0.1) if i == 3 else f, attack=0.003)
+        s += 0.16
+    return biquad(tr.buf, "lowpass", 2500, 0.8)
+
+
+# ---- bells
+
+
+def ding() -> np.ndarray:
+    tr = Track(1.3)
+    bell(tr, 0.0, 1319, 1.1, 0.4)
+    return tr.buf
+
+
+def glockenspiel() -> np.ndarray:
+    tr = Track(1.5)
+    for i, f in enumerate([1047, 1319, 1568, 2093]):
+        bell(tr, i * 0.1, f, 0.9, 0.22)
+    return tr.buf
+
+
+def wind_chimes() -> np.ndarray:
+    rng = random.Random(11)
+    tr = Track(2.4)
+    for _ in range(9):
+        bell(tr, rng.random() * 1.0, rng.choice([1047, 1175, 1319, 1568, 1760, 2093]), 1.2, 0.14)
+    return tr.buf
+
+
+def gong() -> np.ndarray:
+    tr = Track(2.4)
+    for ratio, amp in ((1.0, 1.0), (1.47, 0.7), (2.09, 0.5), (2.56, 0.4), (3.2, 0.25)):
+        tr.voice("sine", 0.0, 2.2 / math.sqrt(ratio), 0.4 * amp, 110 * ratio, attack=0.015)
+    return tr.buf
+
+
+def music_box() -> np.ndarray:
+    tr = Track(1.9)
+    for i, f in enumerate([1047, 1319, 1568, 1319, 1568, 2093]):
+        tr.voice("sine", i * 0.14, 0.7, 0.25, f, attack=0.003)
+        tr.voice("sine", i * 0.14, 0.2, 0.06, f * 3, attack=0.003)
+    return tr.buf
+
+
+# ---- cartoon
+
+
+def bubble_pop() -> np.ndarray:
+    tr = Track(0.55)
+    for s, f0, f1 in ((0.0, 400, 1200), (0.13, 500, 1500), (0.25, 350, 1000)):
+        tr.voice("sine", s, 0.1, 0.35, lambda t, a=f0, b=f1: exp_ramp(a, b, 0, 0.08, t), attack=0.003)
+    return tr.buf
+
+
+def cuckoo() -> np.ndarray:
+    tr = Track(1.3)
+    for s in (0.0, 0.6):
+        tr.voice("sine", s, 0.2, 0.3, 784, attack=0.01)
+        tr.voice("sine", s + 0.22, 0.3, 0.3, 622, attack=0.01)
+    return tr.buf
+
+
+def whoosh() -> np.ndarray:
+    noise = np.random.default_rng(3).standard_normal(int(0.6 * SR))
+    t = np.arange(len(noise)) / SR
+    shaped = noise * np.where(t < 0.25, (t / 0.25) ** 2, np.exp(-(t - 0.25) * 9))
+    return biquad(shaped, "bandpass", 1400, 0.9)
+
+
+# ---- tech
+
+
+def sonar() -> np.ndarray:
+    tr = Track(2.0)
+    for s, p in ((0.0, 0.4), (0.55, 0.12), (1.0, 0.04)):
+        tr.voice("sine", s, 0.7, p, 1100, attack=0.005)
+    return tr.buf
+
+
+def scanner() -> np.ndarray:
+    tr = Track(1.0)
+    tr.voice("sine", 0.0, 0.9, 0.25, lambda t: 900 + 600 * np.sin(2 * np.pi * t / 0.45), attack=0.03)
+    return tr.buf
+
+
+def computer() -> np.ndarray:
+    tr = Track(0.7)
+    for i, f in enumerate([1400, 1000, 1400, 1000]):
+        tr.voice("square", i * 0.11, 0.08, 0.1, f, attack=0.003)
+    return biquad(tr.buf, "lowpass", 3000, 0.7)
+
+
+# ---- calm
+
+
+def singing_bowl() -> np.ndarray:
+    tr = Track(2.4)
+    for ratio, amp in ((1.0, 1.0), (1.004, 0.8), (2.71, 0.3), (5.1, 0.1)):
+        tr.voice("sine", 0.0, 2.2 / math.sqrt(ratio), 0.3 * amp, 330 * ratio, attack=0.06)
+    return tr.buf
+
+
+def water_drop() -> np.ndarray:
+    tr = Track(0.8)
+    tr.voice("sine", 0.0, 0.3, 0.4, lambda t: exp_ramp(1400, 500, 0, 0.12, t), attack=0.003)
+    tr.voice("sine", 0.26, 0.3, 0.18, lambda t: exp_ramp(1100, 420, 0, 0.12, t), attack=0.003)
+    return tr.buf
+
+
+def harp() -> np.ndarray:
+    tr = Track(2.0)
+    for i, f in enumerate([523, 659, 784, 1047, 1319, 1568]):
+        tr.voice("sine", i * 0.07, 1.1, 0.2, f, attack=0.003)
+        tr.voice("sine", i * 0.07, 0.4, 0.05, f * 2, attack=0.003)
+    return tr.buf
+
+
+def marimba() -> np.ndarray:
+    tr = Track(1.0)
+    for i, f in enumerate([523, 659, 784]):
+        tr.voice("sine", i * 0.12, 0.5, 0.4, f, attack=0.002)
+        tr.voice("sine", i * 0.12, 0.1, 0.08, f * 4, attack=0.002)
+    return tr.buf
+
+
 SOUNDS = {
     "coin": coin,
     "level-up": level_up,
@@ -208,6 +394,28 @@ SOUNDS = {
     "boing": boing,
     "robot": robot,
     "slide-whistle": slide_whistle,
+    "fanfare": fanfare,
+    "success": success,
+    "power-up": power_up,
+    "one-up": one_up,
+    "blip": blip,
+    "laser": laser,
+    "game-over": game_over,
+    "ding": ding,
+    "glockenspiel": glockenspiel,
+    "wind-chimes": wind_chimes,
+    "gong": gong,
+    "music-box": music_box,
+    "bubble-pop": bubble_pop,
+    "cuckoo": cuckoo,
+    "whoosh": whoosh,
+    "sonar": sonar,
+    "scanner": scanner,
+    "computer": computer,
+    "singing-bowl": singing_bowl,
+    "water-drop": water_drop,
+    "harp": harp,
+    "marimba": marimba,
 }
 
 

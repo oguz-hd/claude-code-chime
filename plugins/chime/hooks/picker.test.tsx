@@ -27,15 +27,29 @@ describe('picker', () => {
         expect(await ui.find({ key })).toBeDefined()
       }
 
-      // Enter on "Done" opens its sound list, with the current sound marked.
+      // Enter on "Done" opens its categories, with the current sound's category marked.
       await ui.press({ key: 'event:done' })
-      expect(await ui.find({ key: 'sound:coin' })).toBeDefined()
-      expect((await ui.find({ key: 'sound:tada' }))?.text).toContain('✓')
+      for (const key of ['cat:victory', 'cat:retro', 'cat:bells', 'cat:cartoon', 'cat:tech', 'cat:calm', 'sound:off']) {
+        expect(await ui.find({ key })).toBeDefined()
+      }
+      expect((await ui.find({ key: 'cat:victory' }))?.text).toContain('✓')
 
-      // Picking a sound keeps it and returns to the main screen.
+      // A category lists its sounds, with the current one marked.
+      await ui.press({ key: 'cat:victory' })
+      expect((await ui.find({ key: 'sound:tada' }))?.text).toContain('✓')
+      expect(await ui.find({ key: 'sound:coin' })).toBeUndefined()
+
+      // Back returns to the categories; another category's sound can be kept.
+      await ui.press({ key: 'back' })
+      await ui.press({ key: 'cat:retro' })
       await ui.press({ key: 'sound:coin' })
       expect(await ui.find({ key: 'event:done' })).toBeDefined()
       expect((await ui.find({ key: 'event:done' }))?.text).toContain('Coin')
+
+      // Silent is kept straight from the category list.
+      await ui.press({ key: 'event:idle' })
+      await ui.press({ key: 'sound:off' })
+      expect((await ui.find({ key: 'event:idle' }))?.text).toContain('off')
 
       // Back from a list changes nothing.
       await ui.press({ key: 'event:waiting' })

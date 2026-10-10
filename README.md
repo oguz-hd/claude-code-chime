@@ -2,7 +2,7 @@
 
 Chime plays a sound when Claude Code finishes a turn, stops to wait for you, or hits an error. Start a long task, switch to another window, and come back when you hear it.
 
-- **Ten original sounds** (ta-da, coin, level up, doorbell, microwave, boing, rubber duck, robot, slide whistle, sad trombone), synthesized from scratch and free to use (CC0).
+- **32 original sounds in six categories** (Victory, Retro, Bells, Cartoon, Tech, Calm), synthesized from scratch and free to use (CC0). Run `/chime list` to see them all.
 - **Your own sound files** for any event.
 - **A picker pane** to try each sound and keep it, plus a `/chime` command for everything else.
 - **Volume, snooze, quiet hours**, and a minimum turn length so quick replies stay silent.
@@ -51,7 +51,7 @@ Type `/chime` to open the picker. It works from the keyboard like Claude Code's 
 | b | back to the main screen |
 | Esc | close the picker |
 
-In a sound list, resting on a sound plays it, so you can browse by ear and press Enter on the one you like. The volume list does the same at each level.
+Each event opens a list of categories; pick one to see its sounds. In a sound list, resting on a sound plays it, so you can browse by ear and press Enter on the one you like. The volume list does the same at each level.
 
 ```
 Chime
@@ -79,6 +79,7 @@ Or use the command directly:
 /chime snooze 45m                 also 2h, 1h30m, off
 /chime quiet 22:00-08:00          no sounds at night (local time); off to clear
 /chime min 20                     "done" only after turns of 20 s or more
+/chime list [category]            bundled sounds by category
 /chime test                       play every event's sound
 /chime status                     show the settings
 /chime help                       everything else
@@ -140,7 +141,7 @@ claude plugin validate .               # the marketplace manifest
 
 To type-check, run `/plugin-types plugins/chime/.claude/types` in Claude Code once, then `npx -p typescript tsc -p plugins/chime`.
 
-To change or add a sound, edit `tools/render_sounds.py`, then `pip install numpy && python tools/render_sounds.py`. Add the new id to `BUNDLED` in `hooks/settings.ts`.
+To change or add a sound, edit `tools/render_sounds.py`, then `pip install numpy && python tools/render_sounds.py`. Add the new id to `BUNDLED` in `hooks/settings.ts` with one of the `CATEGORIES` ids.
 
 ## License
 

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'claude-code/testing'
 
-import { DEFAULTS, isFilePath, isInQuietHours, normalize, parseDuration, parseQuietHours } from './settings'
+import { BUNDLED, CATEGORIES, DEFAULTS, categoryOf, findCategory, soundsIn, isFilePath, isInQuietHours, normalize, parseDuration, parseQuietHours } from './settings'
 import { fromBase64, scaleWav, toBase64 } from './wav'
 
 const at = (h: number, m: number) => new Date(2026, 0, 1, h, m)
@@ -101,5 +101,27 @@ describe('WAV scaling', () => {
   test('base64 round trip', () => {
     const bytes = wav16([1, 2, 3, -4])
     expect([...fromBase64(toBase64(bytes))]).toEqual([...bytes])
+  })
+})
+
+describe('sound catalog', () => {
+  test('every sound has a known category and ids are unique', () => {
+    const ids = BUNDLED.map(b => b.id)
+    expect(new Set(ids).size).toBe(ids.length)
+    for (const b of BUNDLED) expect(CATEGORIES.some(c => c.id === b.category)).toBe(true)
+  })
+
+  test('every category has sounds, and a category list shows the sounds it owns', () => {
+    for (const c of CATEGORIES) expect(soundsIn(c.id).length).toBeGreaterThan(0)
+    expect(soundsIn('retro').map(b => b.id)).toContain('coin')
+    expect(categoryOf('tada')).toBe('victory')
+    expect(categoryOf('off')).toBeUndefined()
+    expect(categoryOf('/x/y.wav')).toBeUndefined()
+  })
+
+  test('findCategory takes an id or a label in any case', () => {
+    expect(findCategory('Retro')?.id).toBe('retro')
+    expect(findCategory(' CALM ')?.id).toBe('calm')
+    expect(findCategory('nope')).toBeUndefined()
   })
 })
